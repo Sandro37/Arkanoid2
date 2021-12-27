@@ -1,0 +1,82 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class GameManager : MonoBehaviour
+{
+    #region Singleton
+    private static GameManager _instance;
+    public static GameManager Instance => _instance;
+    private void Awake()
+    {
+        if (_instance != null)
+            Destroy(gameObject);
+        else
+            _instance = this;
+    }
+    #endregion
+
+    public static event Action<int> OnLiveLost;
+    public int AvailableLives = 3;
+    public GameObject GameOverScreen;
+    public GameObject VictoryScreen;
+    public bool IsGameStarted { get; set; }
+    public int Lives { get; set; }
+    private void Start()
+    {
+        this.Lives = AvailableLives;
+        Screen.SetResolution(540, 960, false);
+        Ball.OnBallDeath += OnBallDeath;
+        Brick.OnBrickDestruction += OnBrickDestruction;
+    }
+
+    private void OnBrickDestruction(Brick obj)
+    {
+        if(BricksManager.Instance.RemainingBricks.Count <= 0)
+        {
+            BallsManager.Instance.ResetBalls();
+            GameManager.Instance.IsGameStarted = false;
+            BricksManager.Instance.LoadNextLevel();
+        }
+    }
+
+    public void RestartGame()
+    {
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+    private void OnBallDeath(Ball obj)
+    {
+        if(BallsManager.Instance.Balls.Count <= 0)
+        {
+            this.Lives--;
+
+            if (this.Lives <= 0)
+            {
+                GameOverScreen.SetActive(true);
+            }
+            else
+            {
+                OnLiveLost?.Invoke(this.Lives);
+                BallsManager.Instance.ResetBalls();
+                IsGameStarted = false;
+                BricksManager.Instance.LoadLevel(BricksManager.Instance.CurrentLevel);
+            }
+        }
+    }
+
+    internal void ShowVictoryScreen()
+    {
+        VictoryScreen.SetActive(true);
+    }
+
+    private void OnDisable()
+    {
+        Ball.OnBallDeath -= OnBallDeath;
+    }
+    private void OnEnable()
+    {
+        Ball.OnBallDeath -= OnBallDeath;
+    }
+}
